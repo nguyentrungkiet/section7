@@ -1,70 +1,127 @@
-import { Image, StyleSheet, Platform } from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, TextInput, Button, FlatList, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState } from '../../src/store/redux/store';
+import { addTodo, toggleTodo, removeTodo } from '../../src/store/redux/todoSlice';
+import { useTodos } from '../../src/store/context/TodoContext';
+import TodoItem from '../../src/components/TodoItem';
+import { Todo } from '../../src/types/Todo';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+const TodoListScreen = () => {
+  const [text, setText] = useState('');
+  const reduxTodos = useSelector((state: RootState) => state.todos.todos);
+  const dispatch = useDispatch();
+  const { todos: contextTodos, addTodo: contextAddTodo, toggleTodo: contextToggleTodo, removeTodo: contextRemoveTodo } = useTodos();
 
-export default function HomeScreen() {
+  const handleAddTodo = useCallback(() => {
+    if (text.trim()) {
+      dispatch(addTodo(text));
+      contextAddTodo(text);
+      setText('');
+    }
+  }, [text, dispatch, contextAddTodo]);
+
+  const renderTodoItem = useCallback(({ item }: { item: Todo }) => (
+    <TodoItem
+      todo={item}
+      onToggle={() => dispatch(toggleTodo(item.id))}
+      onRemove={() => dispatch(removeTodo(item.id))}
+    />
+  ), [dispatch]);
+
+  const renderContextTodoItem = useCallback(({ item }: { item: Todo }) => (
+    <TodoItem
+      todo={item}
+      onToggle={() => contextToggleTodo(item.id)}
+      onRemove={() => contextRemoveTodo(item.id)}
+    />
+  ), [contextToggleTodo, contextRemoveTodo]);
+
+  const keyExtractor = useCallback((item: Todo) => item.id, []);
+
+  const memoizedReduxTodos = useMemo(() => reduxTodos, [reduxTodos]);
+  const memoizedContextTodos = useMemo(() => contextTodos, [contextTodos]);
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+    <View style={styles.container}>
+      <Text style={styles.title}>Quản Lý Công Việc</Text>
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          value={text}
+          onChangeText={setText}
+          placeholder="Thêm công việc mới"
+          placeholderTextColor="#888"
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({ ios: 'cmd + d', android: 'cmd + m' })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          Tap the Explore tab to learn more about what's included in this starter app.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          When you're ready, run{' '}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        <TouchableOpacity style={styles.addButton} onPress={handleAddTodo}>
+          <Text style={styles.addButtonText}>Thêm</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.sectionTitle}>Danh sách Redux:</Text>
+      <FlatList
+        data={memoizedReduxTodos}
+        renderItem={renderTodoItem}
+        keyExtractor={keyExtractor}
+        style={styles.list}
+      />
+      <Text style={styles.sectionTitle}>Danh sách Context:</Text>
+      <FlatList
+        data={memoizedContextTodos}
+        renderItem={renderContextTodoItem}
+        keyExtractor={keyExtractor}
+        style={styles.list}
+        initialNumToRender={10}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        removeClippedSubviews={true}
+        ListEmptyComponent={<Text>Không có công việc nào.</Text>}
+      />
+    </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    padding: 20,
+  },
+  input: {
+    height: 40,
+    borderColor: 'gray',
+    borderWidth: 1,
+    marginBottom: 10,
+    paddingHorizontal: 10,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 10,
+    marginBottom: 5,
+  },
+  addButton: {
+    backgroundColor: 'blue',
+    padding: 10,
+    borderRadius: 5,
+  },
+  addButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  inputContainer: {
     flexDirection: 'row',
+    marginBottom: 10,
     alignItems: 'center',
-    gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  list: {
+    flex: 1,
+    marginTop: 10,
   },
 });
+
+export default TodoListScreen;
